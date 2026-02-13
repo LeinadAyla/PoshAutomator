@@ -13,21 +13,20 @@ publish:
         run: |
           $ErrorActionPreference = "Stop"
           
-          # Força o uso de protocolos seguros (Resolve falhas de conexão)
+          # 1. Configuração de TLS e Repositório
           [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          Register-PSRepository -Default -ErrorAction SilentlyContinue
 
-          # Atualiza as ferramentas de base (Passo crucial para o Ubuntu)
-          Write-Host "🔄 Atualizando ferramentas de gerenciamento de pacotes..."
-          Install-Module -Name PowerShellGet -Force -SkipPublisherCheck -Scope CurrentUser
-          Install-Module -Name PackageManagement -Force -SkipPublisherCheck -Scope CurrentUser
-          
-          # Importa o PackageManagement para habilitar o provedor NuGet
-          Import-Module PackageManagement
-          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$false
-
-          # Configura e publica
+          # 2. Instalação do NuGet SEM busca (ignora o erro de 'No match found')
+          Write-Host "📦 Forçando instalação do provedor NuGet..."
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          $modulePath = Resolve-Path "./src/PoshAutomator"
           
+          # Tenta instalar silenciosamente; se falhar, o Publish-Module tentará baixar automaticamente
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$false -ErrorAction SilentlyContinue
+
+          # 3. Publicação Oficial
+          $modulePath = Resolve-Path "./src/PoshAutomator"
           Write-Host "🚀 Publicando versão oficial na PowerShell Gallery..."
+          
+          # O parâmetro -Force aqui é vital para ignorar avisos de ambiente
           Publish-Module -Path $modulePath -NuGetApiKey $env:PSG_KEY -Verbose -Force
