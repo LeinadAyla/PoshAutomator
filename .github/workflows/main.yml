@@ -1,4 +1,5 @@
 name: CI-CD PoshAutomator
+
 on:
   push:
     branches: [ main ]
@@ -27,23 +28,21 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Publicar via NuGet Direct
+      # ESTE É O PASSO QUE FALTAVA: Prepara o terreno para o Publish-Module
+      - name: Instalar .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publicar na PSGallery
         shell: pwsh
         env:
+          # Verifique se o nome do Secret no GitHub é exatamente este:
           PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
           $ErrorActionPreference = "Stop"
           
-          # 1. Garante TLS 1.2 e baixa o NuGet.exe diretamente
-          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          Invoke-WebRequest -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" -OutFile "./nuget.exe"
+          Write-Host "🚀 Iniciando publicação oficial via Publish-Module..."
           
-          # 2. Identifica a versão atual para o log
-          $manifest = Import-PowerShellDataFile "./src/PoshAutomator/PoshAutomator.psd1"
-          $version = $manifest.ModuleVersion
-          Write-Host "📦 Empacotando e enviando versão $version via API direta..."
-
-          # 3. Publicação direta usando NuGet (Pula o erro de PackageProvider)
-          # Nota: No Linux, usamos o 'mono' para rodar o nuget.exe ou chamamos diretamente se o runner permitir
-          chmod +x ./nuget.exe
-          ./nuget.exe push "./src/PoshAutomator" $env:PSG_KEY -Source "https://www.powershellgallery.com/api/v2/package" -NonInteractive
+          # Publica usando o comando nativo que agora tem o .NET para ajudar
+          Publish-Module -Path "./src/PoshAutomator" -NuGetApiKey $env:PSG_KEY -Verbose
