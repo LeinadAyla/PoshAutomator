@@ -13,6 +13,7 @@ jobs:
       - name: Rodar Testes
         shell: pwsh
         run: |
+          # Instala o Pester apenas para esta sessão
           Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser
           $config = New-PesterConfiguration
           $config.Run.Path = "./tests"
@@ -34,23 +35,18 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           
-          # 1. Força o uso de protocolos seguros
+          # 1. Força o protocolo TLS 1.2 para evitar erros de conexão
           [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-          # 2. Configura a Galeria como confiável (Isso permite baixar o NuGet automaticamente)
-          Write-Host "📡 Configurando repositório..."
+          # 2. Define a PSGallery como confiável. 
+          # Isso permite que o Publish-Module baixe o NuGet sozinho se precisar.
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
 
-          # 3. Resolve o caminho do módulo
+          # 3. Localiza o caminho absoluto do módulo
           $modulePath = Resolve-Path "./src/PoshAutomator"
           
-          Write-Host "🚀 Iniciando publicação direta da versão..."
+          Write-Host "🚀 Iniciando publicação direta da versão na PowerShell Gallery..."
           
-          # 4. Publicação Oficial: O Force garante que ele tente instalar o NuGet se necessário
-          try {
-              Publish-Module -Path $modulePath -NuGetApiKey $env:PSG_KEY -Verbose -Force
-              Write-Host "✅ Sucesso absoluto!"
-          } catch {
-              Write-Error "❌ Falha na publicação: $($_.Exception.Message)"
-              exit 1
-          }
+          # 4. PUBLICAÇÃO DIRETA: Sem tentar instalar PackageProviders antes.
+          # O parâmetro -Force aqui com o repositório Trusted é a chave.
+          Publish-Module -Path $modulePath -NuGetApiKey $env:PSG_KEY -Verbose -Force

@@ -3,7 +3,7 @@
     RootModule = 'PoshAutomator.psm1'
 
     # Versão inicial
-    ModuleVersion = '1.1.2'
+    ModuleVersion = '1.1.6'
 
     # Identificador único (mantive o seu)
     GUID = 'b5bce30b-825f-4587-9cf4-ef1f3ed0b57b'
