@@ -1,24 +1,31 @@
-- name: Publicar Modulo
+publish:
+    name: Publicar na PSGallery
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Publicar Modulo
         shell: pwsh
         env:
           PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
           $ErrorActionPreference = "Stop"
           
-          # 1. Garante protocolos de segurança modernos
+          # Força o uso de protocolos seguros (Resolve falhas de conexão)
           [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-          # 2. Atualiza os módulos de gerenciamento de pacotes (Recomendação)
-          Write-Host "🔄 Atualizando ferramentas de gerenciamento..."
+          # Atualiza as ferramentas de base (Passo crucial para o Ubuntu)
+          Write-Host "🔄 Atualizando ferramentas de gerenciamento de pacotes..."
           Install-Module -Name PowerShellGet -Force -SkipPublisherCheck -Scope CurrentUser
           Install-Module -Name PackageManagement -Force -SkipPublisherCheck -Scope CurrentUser
+          
+          # Importa o PackageManagement para habilitar o provedor NuGet
           Import-Module PackageManagement
-
-          # 3. Agora sim, instala o NuGet com a base atualizada
-          Write-Host "📦 Instalando provedor NuGet..."
           Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$false
 
-          # 4. Configura e pública
+          # Configura e publica
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
           $modulePath = Resolve-Path "./src/PoshAutomator"
           
