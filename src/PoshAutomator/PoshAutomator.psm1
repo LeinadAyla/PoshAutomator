@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Módulo PoshAutomator v1.1.9 - Ferramentas de Automação e Inventário.
+    Módulo PoshAutomator v1.2.0 - Interface de Usuário e Inventário Robusto.
 #>
 
 function Get-PoshSystemInfo {
@@ -12,7 +12,6 @@ function Get-PoshSystemInfo {
         $osName = "Unknown"
 
         if ($IsWindows) {
-            # Lógica para Windows
             try {
                 $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
                 $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
@@ -22,21 +21,17 @@ function Get-PoshSystemInfo {
                 Write-Warning "Falha ao coletar dados via CIM no Windows."
             }
         } else {
-            # Lógica para Linux (Kali/Ubuntu)
             if (Test-Path /etc/os-release) {
                 $osLine = Get-Content /etc/os-release | Select-String "PRETTY_NAME"
                 $osName = $osLine.ToString().Split('=')[1].Trim('"')
             }
-            
             if (Test-Path /proc/meminfo) {
-                # Extrai apenas os dígitos para o cálculo de RAM
                 $memLine = Get-Content /proc/meminfo | Select-String "MemTotal" | Out-String
                 $ramKb = [double]($memLine -replace '[^\d]') 
                 $ram = [Math]::Round($ramKb / 1MB, 2)
             }
         }
 
-        # Identificação do Host e Usuário
         $currentHost = $env:COMPUTERNAME ?? $env:HOSTNAME ?? (hostname)
         $currentUser = $env:USER ?? $env:USERNAME ?? "unknown"
 
@@ -62,9 +57,7 @@ function Get-SystemReport {
     )
     
     process {
-        Write-Host "🔍 Gerando relatório ($TipoRelatorio) para: $ComputerName..." -ForegroundColor Cyan
-        
-        # Chama a função de coleta interna
+        Write-Host "`n🔍 Gerando relatório ($TipoRelatorio) para: $ComputerName..." -ForegroundColor Cyan
         $data = Get-PoshSystemInfo 
 
         if ($TipoRelatorio -eq "Completo") {
@@ -76,5 +69,42 @@ function Get-SystemReport {
     }
 }
 
-# Exporta as funções para que fiquem visíveis aos usuários do módulo
-Export-ModuleMember -Function Get-PoshSystemInfo, Get-SystemReport
+function Show-PoshMenu {
+    [CmdletBinding()]
+    param()
+    
+    do {
+        Clear-Host
+        Write-Host "====================================" -ForegroundColor Cyan
+        Write-Host "    PAINEL POSHAUTOMATOR v1.2.0     " -ForegroundColor Cyan
+        Write-Host "====================================" -ForegroundColor Cyan
+        Write-Host "1. Gerar Relatório Rápido"
+        Write-Host "2. Ver Detalhes Completos"
+        Write-Host "3. Sair"
+        Write-Host "------------------------------------"
+
+        $choice = Read-Host "Escolha uma opção (1-3)"
+        
+        switch ($choice) {
+            "1" { 
+                Get-SystemReport -ComputerName "Localhost" -TipoRelatorio "Resumido" 
+                Read-Host "`nPressione Enter para voltar ao menu..."
+            }
+            "2" { 
+                Get-SystemReport -ComputerName "Localhost" -TipoRelatorio "Completo" 
+                Read-Host "`nPressione Enter para voltar ao menu..."
+            }
+            "3" { 
+                Write-Host "Saindo... Até logo!" -ForegroundColor Yellow
+                return 
+            }
+            default { 
+                Write-Host "❌ Erro: '$choice' não é válido! Use 1, 2 ou 3." -ForegroundColor Red
+                Start-Sleep -Seconds 2
+            }
+        }
+    } while ($true)
+}
+
+# Exporta as 3 funções oficiais para o usuário
+Export-ModuleMember -Function Get-PoshSystemInfo, Get-SystemReport, Show-PoshMenu
