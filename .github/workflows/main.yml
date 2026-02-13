@@ -14,9 +14,7 @@ jobs:
       - name: Rodar Testes
         shell: pwsh
         run: |
-          # Garante que o Pester esteja disponível
           Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser
-          
           $config = New-PesterConfiguration
           $config.Run.Path = "./tests"
           $config.Run.Exit = $true
@@ -37,18 +35,21 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           
-          # FORÇA TLS 1.2: Resolve o erro de 'No match found for NuGet'
+          # Força protocolos de segurança modernos
           [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-          $modulePath = "./src/PoshAutomator"
+          # REGISTRO DE REPOSITÓRIO: Isso resolve o erro 'No match found'
+          Write-Host "📡 Registrando repositórios padrão..."
+          Register-PSRepository -Default -ErrorAction SilentlyContinue
 
-          # Instalação robusta do NuGet
+          # Instalação do NuGet com download direto se necessário
           Write-Host "📦 Configurando provedor NuGet..."
           Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$false
-          
+
           Write-Host "✅ Definindo PSGallery como confiável..."
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
 
-          # Publicação Oficial
+          # Publicação com verificação de caminho
+          $modulePath = Resolve-Path "./src/PoshAutomator"
           Write-Host "🚀 Publicando versão oficial na PowerShell Gallery..."
           Publish-Module -Path $modulePath -NuGetApiKey $env:PSG_KEY -Verbose -Force
