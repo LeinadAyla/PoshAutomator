@@ -1,29 +1,43 @@
 function Get-PoshSystemInfo {
-    <#
-    .SYNOPSIS
-        Coleta informações básicas de hardware e sistema operacional.
-    .DESCRIPTION
-        Esta função utiliza o CIM para buscar o nome do computador, versão do Windows/Linux e capacidade de memória.
-    .EXAMPLE
-        Get-PoshSystemInfo
-    #>
     [CmdletBinding()]
     param()
 
     process {
-        $os = Get-CimInstance -ClassName Win32_OperatingSystem
-        $cs = Get-CimInstance -ClassName Win32_ComputerSystem
+        $ram = 0
+        $osName = "Unknown"
+
+        if ($IsWindows) {
+            # Lógica para Windows
+            $os = Get-CimInstance -ClassName Win32_OperatingSystem
+            $cs = Get-CimInstance -ClassName Win32_ComputerSystem
+            $ram = [Math]::Round($cs.TotalPhysicalMemory / 1GB, 2)
+            $osName = $os.Caption
+        } else {
+            # Lógica para Linux (Kali/Ubuntu)
+            if (Test-Path /etc/os-release) {
+                $osLine = Get-Content /etc/os-release | Select-String "PRETTY_NAME"
+                $osName = $osLine.ToString().Split('=')[1].Trim('"')
+            }
+            
+            if (Test-Path /proc/meminfo) {
+                # Usando Out-String para garantir que o replace funcione no objeto
+                $memLine = Get-Content /proc/meminfo | Select-String "MemTotal" | Out-String
+                $ramKb = [double]($memLine -replace '\D')
+                $ram = [Math]::Round($ramKb / 1MB, 2)
+            }
+        }
+
+        # O Pulo do Gato: Se as variáveis de ambiente falharem, usa o comando 'hostname'
+        $currentHost = $env:COMPUTERNAME ?? $env:HOSTNAME ?? (hostname)
 
         [PSCustomObject]@{
-            ComputerName = $os.CSName
-            OS           = $os.Caption
-            Version      = $os.Version
-            TotalRAM_GB  = [Math]::Round($cs.TotalPhysicalMemory / 1GB, 2)
-            User         = $env:USERNAME
+            ComputerName = $currentHost
+            OS           = $osName
+            TotalRAM_GB  = $ram
+            User         = $env:USER ?? $env:USERNAME ?? "unknown"
             Timestamp    = Get-Date
         }
     }
 }
 
-# Exporta a função para que o usuário possa usá-la
 Export-ModuleMember -Function Get-PoshSystemInfo

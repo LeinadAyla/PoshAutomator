@@ -1,10 +1,31 @@
-name: Deploy PoshAutomator
+name: CI-CD PoshAutomator
 on:
   push:
     branches: [ main ]
 
 jobs:
+  test:
+    name: Executar Testes Pester
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Rodar Testes
+        shell: pwsh
+        run: |
+          # 1. Instala o Pester se não estiver presente
+          Install-Module -Name Pester -Force -SkipPublisherCheck
+          
+          # 2. Executa os testes na pasta /tests
+          $config = New-PesterConfiguration
+          $config.Run.Path = "./tests"
+          $config.Run.Exit = $true
+          Invoke-Pester -Configuration $config
+
   publish:
+    name: Publicar na PSGallery
+    needs: test  # ESTA LINHA É A CHAVE: Só publica se o job 'test' passar
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do código
@@ -16,17 +37,12 @@ jobs:
           PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
           $ErrorActionPreference = "Stop"
-          
-          # Debug: Mostra onde o robô está e o que ele vê
-          Write-Host "--- Verificando Conteúdo do Repo ---"
-          Get-ChildItem -Recurse
-
           $modulePath = "./src/PoshAutomator"
 
-          # Configurações de ambiente para o Linux
+          # 1. Configurações necessárias para o ambiente Linux
           Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
 
-          # Publicação
-          Write-Host "🚀 Publicando versão 1.0.1..."
+          # 2. Publicação Oficial
+          Write-Host "🚀 Publicando versão oficial após testes bem-sucedidos..."
           Publish-Module -Path $modulePath -NuGetApiKey $env:PSG_KEY -Verbose -Force
