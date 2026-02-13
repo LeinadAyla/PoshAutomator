@@ -14,10 +14,9 @@ jobs:
       - name: Rodar Testes
         shell: pwsh
         run: |
-          # 1. Instala o Pester se não estiver presente
-          Install-Module -Name Pester -Force -SkipPublisherCheck
+          # Garante que o Pester esteja disponível
+          Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser
           
-          # 2. Executa os testes na pasta /tests
           $config = New-PesterConfiguration
           $config.Run.Path = "./tests"
           $config.Run.Exit = $true
@@ -25,7 +24,7 @@ jobs:
 
   publish:
     name: Publicar na PSGallery
-    needs: test  # ESTA LINHA É A CHAVE: Só publica se o job 'test' passar
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do código
@@ -37,12 +36,19 @@ jobs:
           PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
           $ErrorActionPreference = "Stop"
+          
+          # FORÇA TLS 1.2: Resolve o erro de 'No match found for NuGet'
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
           $modulePath = "./src/PoshAutomator"
 
-          # 1. Configurações necessárias para o ambiente Linux
-          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+          # Instalação robusta do NuGet
+          Write-Host "📦 Configurando provedor NuGet..."
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$false
+          
+          Write-Host "✅ Definindo PSGallery como confiável..."
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
 
-          # 2. Publicação Oficial
-          Write-Host "🚀 Publicando versão oficial após testes bem-sucedidos..."
+          # Publicação Oficial
+          Write-Host "🚀 Publicando versão oficial na PowerShell Gallery..."
           Publish-Module -Path $modulePath -NuGetApiKey $env:PSG_KEY -Verbose -Force
