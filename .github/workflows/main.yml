@@ -13,29 +13,47 @@ jobs:
       - name: Publicar Modulo
         shell: pwsh
         env:
-          # Garanta que o segredo no GitHub se chame EXATAMENTE PSGALLERY_API_KEY
+          # Garanta que o nome no GitHub Secrets seja exatamente este
           PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
           $ErrorActionPreference = "Stop"
-          Write-Host "==== INICIANDO VALIDAÇÃO ===="
 
-          # 1. Verificar se o Secret foi carregado
+          Write-Host "==== DEBUG WORKSPACE ===="
+          Get-Location
+          # Lista arquivos recursivamente para confirmar a estrutura
+          Get-ChildItem -Recurse
+
+          # 1️⃣ Validar Secret
           if ([string]::IsNullOrWhiteSpace($env:PSG_KEY)) {
-              Write-Error "ERRO: A variável PSG_KEY está vazia. Verifique os Secrets do seu repositório!"
-              exit 1
+              throw "ERRO: PSG_KEY está vazia. Verifique o Secret PSGALLERY_API_KEY nas configurações do repositório."
           }
 
-          # 2. Definir o caminho correto baseado no seu 'tree'
+          # 2️⃣ Caminho do módulo (Baseado no seu comando tree)
           $modulePath = "./src/PoshAutomator"
-          
-          if (Test-Path $modulePath) {
-              Write-Host "✅ Pasta do módulo encontrada: $modulePath"
-              Get-ChildItem -Path $modulePath
-          } else {
-              Write-Error "ERRO: Caminho $modulePath não encontrado no repositório!"
-              exit 1
+
+          if (-not (Test-Path $modulePath)) {
+              throw "ERRO: Caminho $modulePath não encontrado no workspace."
           }
 
-          # 3. Publicação Oficial
-          Write-Host "🚀 Publicando na PowerShell Gallery..."
-          Publish-Module -Path $modulePath -NuGetApiKey $env:PSG_KEY -Verbose -Force
+          # 3️⃣ Garantir NuGet Provider (Necessário para comunicação com a Galeria)
+          Write-Host "Configurando provedor NuGet..."
+          if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
+              Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+          }
+
+          # 4️⃣ Garantir PSGallery registrada e confiável
+          Write-Host "Configurando repositório PSGallery..."
+          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
+              Register-PSRepository -Default
+          }
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+
+          # 5️⃣ Publicar
+          Write-Host "🚀 Publicando módulo na PowerShell Gallery..."
+          Publish-Module `
+              -Path $modulePath `
+              -NuGetApiKey $env:PSG_KEY `
+              -Verbose `
+              -Force
+
+          Write-Host "✅ Publicação concluída com sucesso!"
