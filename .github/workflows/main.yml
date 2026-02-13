@@ -1,18 +1,21 @@
 - name: Publicar Modulo
-  shell: pwsh
-  env:
-    PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
-  run: |
-    Write-Host "Verificando estrutura de arquivos..."
-    Get-ChildItem -Path ./src -Recurse
+        shell: pwsh
+        env:
+          PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          # 1. Validação de Segurança
+          if (-not $env:PSG_KEY) {
+              throw "ERRO: A variável PSG_KEY está vazia. Verifique os Secrets do GitHub!"
+          }
 
-    if (-not $env:PSG_KEY) {
-        throw "ERRO: PSGALLERY_API_KEY não encontrada nos Secrets do GitHub!"
-    }
+          # 2. Debug: Confirmação visual para o log
+          Write-Host "Localizando manifesto em ./src/PoshAutomator/..."
+          Get-ChildItem -Path ./src/PoshAutomator/*.psd1
 
-    # Publicamos apontando para a pasta interna onde está o .psd1
-    Publish-Module `
-      -Path ./src/PoshAutomator `
-      -NuGetApiKey $env:PSG_KEY `
-      -Verbose `
-      -Force
+          # 3. Publicação Profissional
+          # Apontamos exatamente para a subpasta dentro de src
+          Publish-Module `
+            -Path ./src/PoshAutomator `
+            -NuGetApiKey $env:PSG_KEY `
+            -Verbose `
+            -Force
