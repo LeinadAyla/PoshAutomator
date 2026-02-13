@@ -13,28 +13,29 @@ jobs:
       - name: Publicar Modulo
         shell: pwsh
         env:
-          # ATENÇÃO: Verifique se o nome no GitHub Secrets é exatamente este:
+          # Garanta que o segredo no GitHub se chame EXATAMENTE PSGALLERY_API_KEY
           PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
           $ErrorActionPreference = "Stop"
-          
-          # 1. Validação de segurança do Secret
+          Write-Host "==== INICIANDO VALIDAÇÃO ===="
+
+          # 1. Verificar se o Secret foi carregado
           if ([string]::IsNullOrWhiteSpace($env:PSG_KEY)) {
-              Write-Error "ERRO: PSG_KEY está vazia. Verifique se o Secret 'PSGALLERY_API_KEY' existe no GitHub."
+              Write-Error "ERRO: A variável PSG_KEY está vazia. Verifique os Secrets do seu repositório!"
               exit 1
           }
 
-          # 2. O caminho correto baseado no seu comando 'tree'
+          # 2. Definir o caminho correto baseado no seu 'tree'
           $modulePath = "./src/PoshAutomator"
-
-          Write-Host "==== VERIFICANDO ESTRUTURA ===="
+          
           if (Test-Path $modulePath) {
+              Write-Host "✅ Pasta do módulo encontrada: $modulePath"
               Get-ChildItem -Path $modulePath
           } else {
-              Write-Error "ERRO: Pasta $modulePath não encontrada!"
+              Write-Error "ERRO: Caminho $modulePath não encontrado no repositório!"
               exit 1
           }
 
-          # 3. Publicação
-          Write-Host "==== PUBLICANDO NA PS GALLERY ===="
+          # 3. Publicação Oficial
+          Write-Host "🚀 Publicando na PowerShell Gallery..."
           Publish-Module -Path $modulePath -NuGetApiKey $env:PSG_KEY -Verbose -Force
