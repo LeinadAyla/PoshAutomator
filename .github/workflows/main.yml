@@ -15,13 +15,13 @@ jobs:
         env:
           PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
-          # 1. Instalar/Atualizar provedor NuGet para garantir a conexão
+          # 1. Garantir que o ambiente tem o que precisa para publicar
           Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
           
-          # 2. Listar arquivos na raiz para confirmar que o .psd1 está aqui
-          Write-Host "Verificando arquivos no repositório..."
+          # 2. Listar arquivos para depuração (aparecerá nos logs se der erro)
+          Write-Host "Arquivos encontrados na raiz:"
           Get-ChildItem -Path ./
           
-          # 3. Publicar o módulo apontando para a raiz (./)
-          # Usamos -Force para sobrescrever problemas de histórico local do robô
+          # 3. Publicar apontando para a raiz (./) onde está o seu .psd1
+          # Usamos -Force para evitar avisos de confirmação que travam o robô
           Publish-Module -Path ./ -NuGetApiKey $env:PSG_KEY -Verbose -Force
