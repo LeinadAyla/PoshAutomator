@@ -1,0 +1,25 @@
+name: Deploy PoshAutomator
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Publicar Modulo
+        # Usamos pwsh (PowerShell Core) que já vem no Ubuntu do GitHub
+        shell: pwsh
+        env:
+          # O segredo que você salvou no GitHub Secrets
+          PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          # 1. Verificamos se estamos na pasta certa para evitar erro de 'Path not found'
+          Get-ChildItem -Path ./PoshAutomator
+          
+          # 2. Publicamos o módulo
+          # Adicionamos -Verbose para você ver exatamente o que está acontecendo nos logs
+          Publish-Module -Path ./PoshAutomator -NuGetApiKey $env:PSG_KEY -Verbose
