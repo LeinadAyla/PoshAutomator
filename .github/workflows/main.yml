@@ -1,23 +1,40 @@
-- name: Publicar Modulo
-  shell: pwsh
-  env:
-    PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
-  run: |
-    $ErrorActionPreference = "Stop"
+name: Deploy PoshAutomator
+on:
+  push:
+    branches: [ main ]
 
-    Write-Host "==== INICIANDO PUBLICAÇÃO DO MÓDULO ===="
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
 
-    # 1️⃣ Validação do Secret
-    if ([string]::IsNullOrWhiteSpace($env:PSG_KEY)) {
-        throw "ERRO: PSG_KEY está vazia. Configure corretamente o Secret PSGALLERY_API_KEY."
-    }
+      - name: Publicar Modulo
+        shell: pwsh
+        env:
+          # ATENÇÃO: Verifique se o nome no GitHub Secrets é exatamente este:
+          PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          
+          # 1. Validação de segurança do Secret
+          if ([string]::IsNullOrWhiteSpace($env:PSG_KEY)) {
+              Write-Error "ERRO: PSG_KEY está vazia. Verifique se o Secret 'PSGALLERY_API_KEY' existe no GitHub."
+              exit 1
+          }
 
-    # 2️⃣ Validar existência da pasta do módulo
-    $modulePath = "./src/PoshAutomator"
+          # 2. O caminho correto baseado no seu comando 'tree'
+          $modulePath = "./src/PoshAutomator"
 
-    if (-not (Test-Path $modulePath)) {
-        throw "ERRO: Caminho $modulePath não encontrado."
-    }
+          Write-Host "==== VERIFICANDO ESTRUTURA ===="
+          if (Test-Path $modulePath) {
+              Get-ChildItem -Path $modulePath
+          } else {
+              Write-Error "ERRO: Pasta $modulePath não encontrada!"
+              exit 1
+          }
 
-    # 3️⃣ Validar existência do manifesto (.psd1)
-    $ma
+          # 3. Publicação
+          Write-Host "==== PUBLICANDO NA PS GALLERY ===="
+          Publish-Module -Path $modulePath -NuGetApiKey $env:PSG_KEY -Verbose -Force
