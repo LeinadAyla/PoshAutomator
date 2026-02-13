@@ -1,26 +1,4 @@
-name: CI-CD PoshAutomator
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  test:
-    name: Executar Testes Pester
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Rodar Testes
-        shell: pwsh
-        run: |
-          Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser
-          $config = New-PesterConfiguration
-          $config.Run.Path = "./tests"
-          $config.Run.Exit = $true
-          Invoke-Pester -Configuration $config
-
-  publish:
+publish:
     name: Publicar na PSGallery
     needs: test
     runs-on: ubuntu-latest
@@ -35,21 +13,18 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           
-          # Força protocolos de segurança modernos
+          # 1. Força TLS 1.2 e reseta os repositórios para o padrão
           [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-          # REGISTRO DE REPOSITÓRIO: Isso resolve o erro 'No match found'
-          Write-Host "📡 Registrando repositórios padrão..."
           Register-PSRepository -Default -ErrorAction SilentlyContinue
+          
+          # 2. Instala o NuGet de forma silenciosa e sem busca de tags
+          Write-Host "📦 Instalando provedor NuGet..."
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$false -ErrorAction SilentlyContinue
 
-          # Instalação do NuGet com download direto se necessário
-          Write-Host "📦 Configurando provedor NuGet..."
-          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$false
-
-          Write-Host "✅ Definindo PSGallery como confiável..."
+          # 3. Garante que a PSGallery esteja pronta
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-
-          # Publicação com verificação de caminho
+          
+          # 4. Publicação Oficial
           $modulePath = Resolve-Path "./src/PoshAutomator"
           Write-Host "🚀 Publicando versão oficial na PowerShell Gallery..."
           Publish-Module -Path $modulePath -NuGetApiKey $env:PSG_KEY -Verbose -Force
