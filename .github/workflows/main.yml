@@ -1,4 +1,5 @@
 name: Deploy PoshAutomator
+
 on:
   push:
     branches: [ main ]
@@ -6,6 +7,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -13,44 +15,50 @@ jobs:
       - name: Publicar Modulo
         shell: pwsh
         env:
-          # O nome aqui deve ser EXATAMENTE o que está no seu GitHub Secrets
           PSG_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
           $ErrorActionPreference = "Stop"
 
           Write-Host "==== DEBUG WORKSPACE ===="
           Get-Location
-          # Isso vai mostrar onde os arquivos realmente estão no servidor
-          Get-ChildItem -Recurse 
+          Get-ChildItem -Recurse
 
           # 1️⃣ Validar Secret
           if ([string]::IsNullOrWhiteSpace($env:PSG_KEY)) {
               throw "ERRO: PSG_KEY está vazia. Verifique o Secret 'PSGALLERY_API_KEY' no GitHub."
           }
 
-          # 2️⃣ Caminho do módulo baseado no seu comando 'tree'
+          # 2️⃣ Caminho do módulo
           $modulePath = "./src/PoshAutomator"
-
           if (-not (Test-Path $modulePath)) {
-              throw "ERRO: Caminho $modulePath não encontrado. O Git não enviou a pasta src?"
+              throw "ERRO: Pasta $modulePath não encontrada no repositório!"
           }
 
-          # 3️⃣ Garantir NuGet Provider
-          Write-Host "Configurando NuGet..."
+          # 3️⃣ Validar manifesto (.psd1)
+          $manifest = Get-ChildItem "$modulePath/*.psd1" -ErrorAction SilentlyContinue
+          if (-not $manifest) {
+              throw "ERRO: Nenhum arquivo .psd1 encontrado em $modulePath"
+          } else {
+              Write-Host "✅ Manifesto encontrado: $($manifest.Name)"
+          }
+
+          # 4️⃣ Garantir NuGet Provider
           if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
               Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
           }
 
-          # 4️⃣ Garantir PSGallery registrada
-          Write-Host "Configurando Repositório..."
+          # 5️⃣ Garantir PSGallery registrada e confiável
+          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
+              Register-PSRepository -Default
+          }
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
 
-          # 5️⃣ Publicar
-          Write-Host "🚀 Publicando módulo..."
+          # 6️⃣ Publicação – falha se não funcionar
+          Write-Host "🚀 Tentando publicar módulo..."
           Publish-Module `
               -Path $modulePath `
               -NuGetApiKey $env:PSG_KEY `
               -Verbose `
               -Force
 
-          Write-Host "✅ Publicação concluída!"
+          Write-Host "✅ Publicação concluída com sucesso!"
